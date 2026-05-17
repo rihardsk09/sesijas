@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 // ============================================================
 // KONFIGURĀCIJA — ievadi savus Supabase datus šeit:
 // ============================================================
-const SUPABASE_URL = "https://zntdoyqgjvliffdechxf.supabase.co/rest/v1/"; // <-- maini
+const SUPABASE_URL = "https://zntdoyqgjvliffdechxf.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpudGRveXFnanZsaWZmZGVjaHhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDE4MTksImV4cCI6MjA5NDU3NzgxOX0.8R2-Kb25eU9narqFqHf495qfqkh6BknwQL23RCzplMQ"; // <-- maini
 
 // ============================================================
@@ -54,7 +54,7 @@ const db = {
 // ============================================================
 // PIN kods vadītājam
 // ============================================================
-const ADMIN_PIN = "1234"; // <-- maini uz savu PIN!
+const ADMIN_PIN = "6969"; // <-- maini uz savu PIN!
 
 // Mārupes Jauniešu krāsas
 // Primārā: #7B2D8B (tumšāka violeta)
