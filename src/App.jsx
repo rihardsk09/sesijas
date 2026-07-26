@@ -44,11 +44,15 @@ const db = {
     supabaseFetch(`sessions?id=eq.${id}`, { method: "DELETE" }),
   getResponses: (session_id) =>
     supabaseFetch(`responses?session_id=eq.${session_id}&select=*&order=created_at.asc`),
-  addResponse: (session_id, name, status, comment) =>
-    supabaseFetch("responses", {
+  addResponse: async (session_id, name, status, comment) => {
+    await supabaseFetch(`responses?session_id=eq.${session_id}&name=eq.${encodeURIComponent(name)}`, {
+      method: "DELETE",
+    });
+    return supabaseFetch("responses", {
       method: "POST",
       body: JSON.stringify({ session_id, name, attended: status === "klātienē", status, comment }),
-    }),
+    });
+  },
 };
 
 // ============================================================
