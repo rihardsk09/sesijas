@@ -1,10 +1,16 @@
 import { useState, useEffect } from "react";
 
 // ============================================================
-// KONFIGURĀCIJA — ievadi savus Supabase datus šeit:
+// KONFIGURĀCIJA — Supabase dati
 // ============================================================
 const SUPABASE_URL = "https://zntdoyqgjvliffdechxf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpudGRveXFnanZsaWZmZGVjaHhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDE4MTksImV4cCI6MjA5NDU3NzgxOX0.8R2-Kb25eU9narqFqHf495qfqkh6BknwQL23RCzplMQ"; // <-- maini
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpudGRveXFnanZsaWZmZGVjaHhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDE4MTksImV4cCI6MjA5NDU3NzgxOX0.8R2-Kb25eU9narqFqHf495qfqkh6BknwQL23RCzplMQ";
+
+// ============================================================
+// PIN kods vadītājam
+// ============================================================
+const ADMIN_PIN = "6969"; // <-- maini uz savu PIN!
 
 // ============================================================
 // Supabase palīgfunkcijas
@@ -44,30 +50,29 @@ const db = {
     supabaseFetch(`sessions?id=eq.${id}`, { method: "DELETE" }),
   getResponses: (session_id) =>
     supabaseFetch(`responses?session_id=eq.${session_id}&select=*&order=created_at.asc`),
-  addResponse: async (session_id, name, status, comment) => {
-    await supabaseFetch(`responses?session_id=eq.${session_id}&name=eq.${encodeURIComponent(name)}`, {
-      method: "DELETE",
-    });
-    return supabaseFetch("responses", {
+
+  // Jauna reģistrācija aizstāj iepriekšējo ar to pašu vārdu (neatkarīgi no lielajiem/mazajiem burtiem)
+  addResponse: async (session_id, name, status) => {
+    const created = await supabaseFetch("responses", {
       method: "POST",
-      body: JSON.stringify({ session_id, name, attended: status === "klātienē", status, comment }),
+      body: JSON.stringify({ session_id, name, attended: status === "klātienē", status }),
     });
+    const newId = created?.[0]?.id;
+    if (newId) {
+      await supabaseFetch(
+        `responses?session_id=eq.${session_id}&name=ilike.${encodeURIComponent(name)}&id=neq.${newId}`,
+        { method: "DELETE" }
+      );
+    }
+    return created;
   },
 };
 
 // ============================================================
-// PIN kods vadītājam
+// Stili — Mārupes Jauniešu krāsas
 // ============================================================
-const ADMIN_PIN = "6969"; // <-- maini uz savu PIN!
-
-// Mārupes Jauniešu krāsas
-// Primārā: #7B2D8B (tumšāka violeta)
-// Galvenā: #8B3A9B
-// Gaiša: #a855c8
-// Fons: #1a0a1e
-
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -86,7 +91,7 @@ const styles = `
 
   .header {
     background: #7B2D8B;
-    margin: 0 -1rem 2rem;
+    margin: 0 0 2rem;
     padding: 1.5rem 2rem;
     display: flex;
     align-items: center;
@@ -143,7 +148,7 @@ const styles = `
     letter-spacing: 0.5px;
   }
 
-  input[type="text"], input[type="date"], input[type="password"], textarea {
+  input[type="text"], input[type="date"], input[type="password"] {
     width: 100%;
     background: #120818;
     border: 1.5px solid #3d1a52;
@@ -157,9 +162,14 @@ const styles = `
     transition: border-color 0.2s;
   }
 
-  textarea { resize: vertical; min-height: 70px; }
+  input:focus { border-color: #a855c8; }
 
-  input:focus, textarea:focus { border-color: #a855c8; }
+  .hint {
+    color: #7a5a9a;
+    font-size: 0.75rem;
+    margin: -0.35rem 0 1rem;
+    line-height: 1.4;
+  }
 
   .btn {
     display: inline-flex;
@@ -246,26 +256,19 @@ const styles = `
     justify-content: space-between;
   }
 
-  .response-comment {
-    color: #7a5a9a;
-    font-size: 0.78rem;
-    margin-top: 4px;
-    font-style: italic;
-  }
-
   .status-klatiene { color: #6dfcb0; }
-  .status-attaLinati { color: #a8c8ff; }
-  .status-nebūs { color: #ff8ab0; }
+  .status-nebus { color: #ff8ab0; }
 
   .status-options {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
     flex-wrap: wrap;
   }
 
   .status-btn {
-    padding: 0.5rem 1rem;
+    flex: 1;
+    padding: 0.6rem 1rem;
     border-radius: 10px;
     cursor: pointer;
     font-size: 0.82rem;
@@ -278,9 +281,8 @@ const styles = `
     text-transform: uppercase;
     letter-spacing: 0.3px;
   }
-  .status-btn.selected-klātienē { background: #1a3a2a; border-color: #6dfcb0; color: #6dfcb0; }
-  .status-btn.selected-attālināti { background: #1a2a4a; border-color: #a8c8ff; color: #a8c8ff; }
-  .status-btn.selected-nebūs { background: #3a1020; border-color: #ff8ab0; color: #ff8ab0; }
+  .status-btn.selected-klatiene { background: #1a3a2a; border-color: #6dfcb0; color: #6dfcb0; }
+  .status-btn.selected-nebus { background: #3a1020; border-color: #ff8ab0; color: #ff8ab0; }
 
   .tabs {
     display: flex;
@@ -324,12 +326,6 @@ const styles = `
     text-transform: uppercase;
     letter-spacing: 1px;
   }
-  .pin-screen input {
-    max-width: 220px;
-    text-align: center;
-    letter-spacing: 0.3em;
-    font-size: 1.5rem;
-  }
 
   .error { color: #ff8ab0; font-size: 0.82rem; margin-bottom: 0.5rem; font-weight: 600; }
   .success { color: #6dfcb0; font-size: 0.82rem; margin-bottom: 0.5rem; font-weight: 600; }
@@ -338,7 +334,7 @@ const styles = `
 
   .stat-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
     margin-bottom: 1rem;
   }
@@ -403,7 +399,6 @@ export default function App() {
   const [selectedSession, setSelectedSession] = useState(null);
   const [partName, setPartName] = useState("");
   const [partStatus, setPartStatus] = useState("klātienē");
-  const [partComment, setPartComment] = useState("");
   const [partMsg, setPartMsg] = useState("");
   const [partLoading, setPartLoading] = useState(false);
 
@@ -429,10 +424,9 @@ export default function App() {
     setPartLoading(true);
     setPartMsg("");
     try {
-      await db.addResponse(selectedSession.id, partName.trim(), partStatus, partComment.trim());
+      await db.addResponse(selectedSession.id, partName.trim(), partStatus);
       setPartMsg("✓ Reģistrācija veiksmīga!");
       setPartName("");
-      setPartComment("");
       setPartStatus("klātienē");
     } catch (e) {
       setPartMsg("Kļūda: " + e.message);
@@ -445,7 +439,7 @@ export default function App() {
     try {
       await db.createSession(newSessionName.trim(), newSessionDate);
       setNewSessionName("");
-      setAdminMsg("✓ Sesija izveidota!");
+      setAdminMsg("✓ Sēde izveidota!");
       loadSessions();
     } catch (e) { setAdminMsg("Kļūda: " + e.message); }
   }
@@ -480,17 +474,9 @@ export default function App() {
     setPin("");
   }
 
-  function statusLabel(status) {
-    if (status === "klātienē") return "✅ Klātienē";
-    if (status === "attālināti") return "💻 Attālināti";
-    return "❌ Nebūs";
-  }
-
-  function statusClass(status) {
-    if (status === "klātienē") return "status-klatiene";
-    if (status === "attālināti") return "status-attaLinati";
-    return "status-nebūs";
-  }
+  const isPresent = (r) => r.status === "klātienē";
+  const presentCount = responses.filter(isPresent).length;
+  const absentCount = responses.length - presentCount;
 
   const activeSessions = sessions.filter((s) => s.active);
 
@@ -555,27 +541,24 @@ export default function App() {
                   value={partName}
                   onChange={(e) => setPartName(e.target.value)}
                 />
+                <p className="hint">
+                  Ja mainās plāni — reģistrējies vēlreiz ar to pašu vārdu, un vecā atbilde tiks aizstāta.
+                </p>
 
-                <label style={{ fontSize: "0.75rem", color: "#7a5a9a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "0.5rem", display: "block" }}>
-                  Dalības veids
-                </label>
                 <div className="status-options">
-                  {["klātienē", "attālināti", "nebūs"].map((s) => (
-                    <button
-                      key={s}
-                      className={`status-btn ${partStatus === s ? `selected-${s}` : ""}`}
-                      onClick={() => setPartStatus(s)}
-                    >
-                      {s === "klātienē" ? "✅ Klātienē" : s === "attālināti" ? "💻 Attālināti" : "❌ Nebūs"}
-                    </button>
-                  ))}
+                  <button
+                    className={`status-btn ${partStatus === "klātienē" ? "selected-klatiene" : ""}`}
+                    onClick={() => setPartStatus("klātienē")}
+                  >
+                    ✅ Klātienē
+                  </button>
+                  <button
+                    className={`status-btn ${partStatus === "nebūs" ? "selected-nebus" : ""}`}
+                    onClick={() => setPartStatus("nebūs")}
+                  >
+                    ❌ Nebūs
+                  </button>
                 </div>
-
-                <textarea
-                  placeholder="Komentārs (neobligāts) — piem. 'Būšu līdz 18:00'"
-                  value={partComment}
-                  onChange={(e) => setPartComment(e.target.value)}
-                />
 
                 {partMsg && (
                   <p className={partMsg.startsWith("✓") ? "success" : "error"}>{partMsg}</p>
@@ -664,21 +647,11 @@ export default function App() {
                 <h2>📊 {viewSession.name}</h2>
                 <div className="stat-grid">
                   <div className="stat-box">
-                    <div className="stat-num" style={{ color: "#6dfcb0" }}>
-                      {responses.filter((r) => r.status === "klātienē").length}
-                    </div>
+                    <div className="stat-num" style={{ color: "#6dfcb0" }}>{presentCount}</div>
                     <div className="stat-label">Klātienē</div>
                   </div>
                   <div className="stat-box">
-                    <div className="stat-num" style={{ color: "#a8c8ff" }}>
-                      {responses.filter((r) => r.status === "attālināti").length}
-                    </div>
-                    <div className="stat-label">Attālināti</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="stat-num" style={{ color: "#ff8ab0" }}>
-                      {responses.filter((r) => r.status === "nebūs").length}
-                    </div>
+                    <div className="stat-num" style={{ color: "#ff8ab0" }}>{absentCount}</div>
                     <div className="stat-label">Nebūs</div>
                   </div>
                 </div>
@@ -688,9 +661,10 @@ export default function App() {
                   <div key={r.id} className="response-row">
                     <div className="response-top">
                       <span style={{ fontWeight: 700 }}>{r.name}</span>
-                      <span className={statusClass(r.status)}>{statusLabel(r.status)}</span>
+                      <span className={isPresent(r) ? "status-klatiene" : "status-nebus"}>
+                        {isPresent(r) ? "✅ Klātienē" : "❌ Nebūs"}
+                      </span>
                     </div>
-                    {r.comment && <div className="response-comment">💬 {r.comment}</div>}
                   </div>
                 ))}
               </div>
